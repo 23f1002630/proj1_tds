@@ -14,6 +14,11 @@ import os
 import json
 from fastapi.exceptions import HTTPException
 import subprocess
+from dotenv import load_dotenv
+
+load_dotenv()
+AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
+
 
 app = FastAPI()
 app.add_middleware(
@@ -50,7 +55,6 @@ tools = [
     }
 ]
 
-AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
 
 
 @app.get('/')
@@ -86,7 +90,7 @@ def install_and_run_script(script_url: str, user_email: str):
             script_file.write(response.text)
 
         # Run the script with the user's email as an argument
-        subprocess.run(['python3', script_path, user_email], check=True)
+        subprocess.run(['.venv/bin/python3', script_path, user_email], check=True)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to run script: {str(e)}")
@@ -113,14 +117,14 @@ def task_runner(task: str):
         "model": "gpt-4o-mini",
         "messages": [
             {
-                "role": "user",
-                "content": task
-            },
-            {
                 "role": "system",
                 "content": """
                    Your task is to answer the question based on the context provided.
                    """
+            },
+            {
+                "role": "user",
+                "content": task
             }
         ],
         "tools": tools,
