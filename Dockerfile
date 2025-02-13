@@ -29,4 +29,4 @@ ENV PATH="/app/venv/bin:/root/.local/bin/:$PATH"
 COPY app.py /app
 
 # Command to run the application
-CMD ["uv", "run","app.py"]
+CMD ["python3","app.py"]

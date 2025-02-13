@@ -56,7 +56,6 @@ tools = [
 ]
 
 
-
 @app.get('/')
 def home():
     return {'Hello': 'World'}
@@ -90,10 +89,40 @@ def install_and_run_script(script_url: str, user_email: str):
             script_file.write(response.text)
 
         # Run the script with the user's email as an argument
-        subprocess.run(['.venv/bin/python3', script_path, user_email], check=True)
+        subprocess.run(
+            ['./venv/bin/python3', script_path, user_email], check=True)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to run script: {str(e)}")
+
+
+def task_a2():
+    # Check if 'prettier' is installed
+    try:
+        subprocess.run(['prettier', '--version'], check=True)
+    except FileNotFoundError:
+        # Install 'prettier@3.4.2' if not installed
+        try:
+            subprocess.run(
+                ['npm', 'install', '-g', 'prettier@3.4.2'], check=True)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to install prettier: {str(e)}"
+            )
+
+    # Format the file using prettier
+    file_path = '/data/format.md'
+    try:
+        subprocess.run(['prettier', '--write', file_path], check=True)
+        return {"status": "File formatted successfully"}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to format file: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {str(e)}"
+        )
 
 
 @app.post("/run")
@@ -107,6 +136,14 @@ def task_runner(task: str):
         except Exception as e:
             raise HTTPException(
                 status_code=400, detail=f"Invalid task format: {str(e)}")
+    elif task == "Format ":
+        # Call task_a2 to format the file
+        try:
+            return task_a2()
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to format file: {str(e)}"
+            )
 
     url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
     headers = {
