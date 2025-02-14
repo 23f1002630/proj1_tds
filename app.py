@@ -1,237 +1,501 @@
 # /// script
-# requires-python = ">=3.13"
-# dependencies= [
+# dependencies = [
+#   "requests",
 #   "fastapi",
 #   "uvicorn",
-#   "requests",
-#        ]
+#   "python-dateutil",
+#   "pandas",
+#   "db-sqlite3",
+#   "scipy",
+#   "pybase64",
+#   "python-dotenv",
+#   "httpx",
+#   "markdown",
+#   "duckdb"
+# ]
 # ///
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import PlainTextResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from tasksA import *
+from tasksB import *
 import requests
-import os
-import json
-from fastapi.exceptions import HTTPException
-import subprocess
 from dotenv import load_dotenv
-from datetime import datetime
+import os
+import re
+import httpx
+import json
 
-load_dotenv()
-AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=True,
-    allow_methods=['GET', 'POST'],
-    allow_headers=['*']
-)
-tools = [
+load_dotenv()
+
+# @app.get('/ask')
+# def ask(prompt: str):
+#     """ Prompt Gemini to generate a response based on the given prompt. """
+#     gemini_api_key = os.getenv('gemini_api_key')
+#     if not gemini_api_key:
+#         return JSONResponse(content={"error": "GEMINI_API_KEY not set"}, status_code=500)
+
+#     # Read the contents of tasks.py
+#     with open('tasks.py', 'r') as file:
+#         tasks_content = file.read()
+    
+#     # Prepare the request data
+#     data = {
+#         "contents": [{
+#             "parts": [
+#                 {"text": f"Find the task function from here for the below prompt:\n{tasks_content}\n\nPrompt: {prompt}\n\n respond with the function_name and function_parameters with parameters in json format"},
+#             ]
+#         }]
+#     }
+    
+#     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
+#     headers = {
+#         "Content-Type": "application/json"
+#     }
+    
+#     response = requests.post(url, json=data, headers=headers)
+
+#     if response.status_code == 200:
+#         text_reponse = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+#         match = re.search(r'```json\n(.*?)\n```', text_reponse, re.DOTALL)
+#         text_reponse = match.group(1).strip() if match else text_reponse
+#         return json.loads(text_reponse)
+#         # return JSONResponse(content=response.json(), status_code=200)
+#     else:
+#         return JSONResponse(content={"error": "Failed to get response", "details": response.text}, status_code=response.status_code)
+
+@app.get("/ask")
+def ask(prompt: str):
+    result = get_completions(prompt)
+    return result
+
+openai_api_chat  = "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions" # for testing
+openai_api_key = os.getenv("AIPROXY_TOKEN")
+
+headers = {
+    "Authorization": f"Bearer {openai_api_key}",
+    "Content-Type": "application/json",
+}
+
+function_definitions_llm = [
     {
-        "type": "function",
-        "function": {
-            "name": "script_runner",
-            "description": "Run a script",
-            "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "script_url": {
-                            "type": "string",
-                            "description": "URL of the script to run"
-                        },
-                        "args": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
-                            "description": "List of Arguments to pass to the script"
-                        },
+        "name": "A1",
+        "description": "Run a Python script from a given URL, passing an email as the argument.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                # "filename": {"type": "string", "pattern": r"https?://.*\.py"},
+                # "targetfile": {"type": "string", "pattern": r".*/(.*\.py)"},
+                "email": {"type": "string", "pattern": r"[\w\.-]+@[\w\.-]+\.\w+"}
+            },
+            "required": ["filename", "targetfile", "email"]
+        }
+    },
+    {
+        "name": "A2",
+        "description": "Format a markdown file using a specified version of Prettier.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "prettier_version": {"type": "string", "pattern": r"prettier@\d+\.\d+\.\d+"},
+                "filename": {"type": "string", "pattern": r".*/(.*\.md)"}
+            },
+            "required": ["prettier_version", "filename"]
+        }
+    },
+    {
+        "name": "A3",
+        "description": "Count the number of occurrences of a specific weekday in a date file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {"type": "string", "pattern": r"/data/.*dates.*\.txt"},
+                "targetfile": {"type": "string", "pattern": r"/data/.*/(.*\.txt)"},
+                "weekday": {"type": "integer", "pattern": r"(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"}
+            },
+            "required": ["filename", "targetfile", "weekday"]
+        }
+    },
+    {
+        "name": "A4",
+        "description": "Sort a JSON contacts file and save the sorted version to a target file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.json)",
+                },
+                "targetfile": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.json)",
+                }
+            },
+            "required": ["filename", "targetfile"]
+        }
+    },
+    {
+        "name": "A5",
+        "description": "Retrieve the most recent log files from a directory and save their content to an output file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "log_dir_path": {
+                    "type": "string",
+                    "pattern": r".*/logs",
+                    "default": "/data/logs"
+                },
+                "output_file_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/logs-recent.txt"
+                },
+                "num_files": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 10
+                }
+            },
+            "required": ["log_dir_path", "output_file_path", "num_files"]
+        }
+    },
+    {
+        "name": "A6",
+        "description": "Generate an index of documents from a directory and save it as a JSON file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "doc_dir_path": {
+                    "type": "string",
+                    "pattern": r".*/docs",
+                    "default": "/data/docs"
+                },
+                "output_file_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.json)",
+                    "default": "/data/docs/index.json"
+                }
+            },
+            "required": ["doc_dir_path", "output_file_path"]
+        }
+    },
+    {
+        "name": "A7",
+        "description": "Extract the sender's email address from a text file and save it to an output file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/email.txt"
+                },
+                "output_file": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/email-sender.txt"
+                }
+            },
+            "required": ["filename", "output_file"]
+        }
+    },
+    {
+        "name": "A8",
+        "description": "Generate an image representation of credit card details from a text file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/credit-card.txt"
+                },
+                "image_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.png)",
+                    "default": "/data/credit-card.png"
+                }
+            },
+            "required": ["filename", "image_path"]
+        }
+    },
+    {
+        "name": "A9",
+        "description": "Find similar comments from a text file and save them to an output file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/comments.txt"
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/comments-similar.txt"
+                }
+            },
+            "required": ["filename", "output_filename"]
+        }
+    },
+    {
+        "name": "A10",
+        "description": "Identify high-value (gold) ticket sales from a database and save them to a text file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.db)",
+                    "default": "/data/ticket-sales.db"
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "default": "/data/ticket-sales-gold.txt"
+                },
+                "query": {
+                    "type": "string",
+                    "pattern": "SELECT SUM(units * price) FROM tickets WHERE type = 'Gold'"
+                }
+            },
+            "required": ["filename", "output_filename", "query"]
+        }
+    },
+    {
+        "name": "B12",
+        "description": "Check if filepath starts with /data",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filepath": {
+                    "type": "string",
+                    "pattern": r"^/data/.*",
+                    # "description": "Filepath must start with /data to ensure secure access."
+                }
+            },
+            "required": ["filepath"]
+        }
+    },
+    {
+        "name": "B3",
+        "description": "Download content from a URL and save it to the specified path.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "pattern": r"https?://.*",
+                    "description": "URL to download content from."
+                },
+                "save_path": {
+                    "type": "string",
+                    "pattern": r".*/.*",
+                    "description": "Path to save the downloaded content."
+                }
+            },
+            "required": ["url", "save_path"]
+        }
+    },
+    {
+        "name": "B5",
+        "description": "Execute a SQL query on a specified database file and save the result to an output file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "db_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.db)",
+                    "description": "Path to the SQLite database file."
+                },
+                "query": {
+                    "type": "string",
+                    "description": "SQL query to be executed on the database."
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "description": "Path to the file where the query result will be saved."
+                }
+            },
+            "required": ["db_path", "query", "output_filename"]
+        }
+    },
+    {
+        "name": "B6",
+        "description": "Fetch content from a URL and save it to the specified output file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "pattern": r"https?://.*",
+                    "description": "URL to fetch content from."
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": r".*/.*",
+                    "description": "Path to the file where the content will be saved."
+                }
+            },
+            "required": ["url", "output_filename"]
+        }
+    },
+    {
+        "name": "B7",
+        "description": "Process an image by optionally resizing it and saving the result to an output path.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "image_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.(jpg|jpeg|png|gif|bmp))",
+                    "description": "Path to the input image file."
+                },
+                "output_path": {
+                    "type": "string",
+                    "pattern": r".*/.*",
+                    "description": "Path to save the processed image."
+                },
+                "resize": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1
                     },
-                "required": ["script_url", "args"]
-            }
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "Optional. Resize dimensions as [width, height]."
+                }
+            },
+            "required": ["image_path", "output_path"]
+        }
+    },
+    {
+        "name": "B9",
+        "description": "Convert a Markdown file to another format and save the result to the specified output path.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "md_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.md)",
+                    "description": "Path to the Markdown file to be converted."
+                },
+                "output_path": {
+                    "type": "string",
+                    "pattern": r".*/.*",
+                    "description": "Path where the converted file will be saved."
+                }
+            },
+            "required": ["md_path", "output_path"]
         }
     }
+
 ]
 
-
-@app.get('/')
-def home():
-    return {'Hello': 'World'}
-
-
-@app.get("/read")
-def read_file(path: str):
-    try:
-        with open(path, "r") as f:
-            return f.read()
-    except Exception as e:
-        raise HTTPException(status_code=404, detail="File does not exist")
-
-
-def install_and_run_script(script_url: str, user_email: str):
-    # Check if 'uv' is installed
-    try:
-        subprocess.run(['uv', '--version'], check=True)
-    except subprocess.CalledProcessError:
-        # Install 'uv' if not installed
-        subprocess.run(['pip', 'install', 'uv'], check=True)
-
-    # Download and run the script
-    try:
-        response = requests.get(script_url)
-        response.raise_for_status()
-
-        # Save the script to a temporary file
-        script_path = './datagen.py'
-        with open(script_path, 'w') as script_file:
-            script_file.write(response.text)
-
-        # Run the script with the user's email as an argument
-        subprocess.run(
-            ['./venv/bin/python3', script_path, user_email], check=True)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to run script: {str(e)}")
-
-import subprocess
-
-def a2(file: str = "/data/format.md"):
-    with open(file, "r") as f:
-        original = f.read()
-    try:
-        expected = subprocess.run(
-            ["npx", "prettier@3.4.2", "--stdin-filepath", file],
-            input=original,
-            capture_output=True,
-            text=True,
-            check=True
-            # Ensure npx is picked up from the PATH on Windows
+def get_completions(prompt: str):
+    with httpx.Client(timeout=20) as client:
+        response = client.post(
+            f"{openai_api_chat}",
+            headers=headers,
+            json=
+                {
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                                    {"role": "system", "content": "You are a function classifier that extracts structured parameters from queries."},
+                                    {"role": "user", "content": prompt}
+                                ],
+                    "tools": [
+                                {
+                                    "type": "function",
+                                    "function": function
+                                } for function in function_definitions_llm
+                            ],
+                    "tool_choice": "auto"
+                },
         )
-        expected = expected.stdout
-        with open(file, "w") as f:
-            f.write(expected)    
-    except subprocess.CalledProcessError as e:
-        print(f"Error formatting file: {e.stderr}")
-        return False
+    # return response.json()
+    print(response.json()["choices"][0]["message"]["tool_calls"][0]["function"])
+    return response.json()["choices"][0]["message"]["tool_calls"][0]["function"]
 
-def count_weekdays(input_file: str, output_file: str, weekday: str):
-    """
-    Count occurrences of a specific weekday in a file and write the count to an output file.
-    """
-    # Corrected weekday names
-    weekdays = ["Monday", "Tuesday", "Wednesdays", "Thursday", "Friday", "Saturday", "Sunday"]
-    weekday_index = weekdays.index(weekday)  # Get the index of the specified weekday
 
-    # List of all possible date formats in the dataset
-    date_formats = [
-        "%Y-%m-%d",          # e.g., 2023-02-14
-        "%b %d, %Y",         # e.g., Mar 21, 2009
-        "%d-%b-%Y",          # e.g., 26-Jan-2020
-        "%d/%m/%Y",          # e.g., 14/02/2025
-        "%m/%d/%Y",          # e.g., 02/14/2025
-        "%d %B %Y",          # e.g., 14 February 2025
-        "%B %d, %Y",         # e.g., February 14, 2025
-        "%Y/%m/%d %H:%M:%S", # e.g., 2023/06/20 15:18:46
-        "%Y/%m/%d",          # e.g., 2023/06/20
-        "%d-%m-%Y",          # e.g., 14-02-2025
-        "%d/%b/%Y",          # e.g., 14/Feb/2025
-        "%d-%B-%Y",          # e.g., 14-February-2025
-        "%d-%m-%y",          # e.g., 14-02-25
-        "%d/%m/%y",          # e.g., 14/02/25
-    ]
-
-    def parse_date(date_str):
-        """Try parsing a date string with multiple formats."""
-        for fmt in date_formats:
-            try:
-                return datetime.strptime(date_str.strip(), fmt)
-            except ValueError:
-                continue
-        # Log unrecognized date formats for debugging
-        print(f"Unrecognized date format: {date_str.strip()}")
-        return None
-
-    with open(input_file, "r") as file:
-        dates = file.readlines()
-
-    # Count the number of dates that match the specified weekday
-    count = 0
-    for date in dates:
-        parsed_date = parse_date(date)
-        if parsed_date and parsed_date.weekday() == weekday_index:
-            count += 1
-
-    # Write the count as a string to the output file
-    with open(output_file, "w") as file:
-        file.write(str(count))
-    
-# Call the function with the specific task requirements
-# count_weekdays("/data/dates.txt", "/data/dates-wednesdays.txt", "Wednesday")
-
+# Placeholder for task execution
 @app.post("/run")
-def task_runner(task: str):
-    if task.startswith("run "):
-        try:
-            # Parse the task string
-            _, script_url, user_email = task.split()
-            install_and_run_script(script_url, user_email)
-            return {"status": "Script executed successfully"}
-        except Exception as e:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid task format: {str(e)}")
-    elif "Format" in task:
-        # Call task_a2 to format the file
-        try:
-            return a2(file="/data/format.md")
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to format file: {str(e)}"
-            )
-    elif "Count" in task:
-        try:
-            # Extract the input file, output file, and weekday from the task string
-            input_file = task.split("`")[1]  # Extract the first file path
-            output_file = task.split("`")[3]  # Extract the second file path
-            weekday = task.split("number of ")[1].split(" ")[0]  # Extract the weekday
+async def run_task(task: str):
+    try:
+        # Placeholder logic for executing tasks
+        # Replace with actual logic to parse task and execute steps
+        # Example: Execute task and return success or error based on result
+        # llm_response = function_calling(tast), function_name = A1
+        response = get_completions(task)
+        print(response)
+        task_code = response['name']
+        arguments = response['arguments']
 
-            # Call the function with the extracted parameters
-            count_weekdays(input_file, output_file, weekday)
-            return {"status": "Count executed successfully"}
-        except Exception as e:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid task format: {str(e)}")
+        if "A1"== task_code:
+            A1(**json.loads(arguments))
+        if "A2"== task_code:
+            A2(**json.loads(arguments))  
+        if "A3"== task_code:
+            A3(**json.loads(arguments))  
+        if "A4"== task_code:
+            A4(**json.loads(arguments))
+        if "A5"== task_code:
+            A5(**json.loads(arguments))  
+        if "A6"== task_code:
+            A6(**json.loads(arguments))   
+        if "A7"== task_code:
+            A7(**json.loads(arguments)) 
+        if "A8"== task_code:
+            A8(**json.loads(arguments)) 
+        if "A9"== task_code:
+            A9(**json.loads(arguments)) 
+        if "A10"== task_code:
+            A10(**json.loads(arguments)) 
+            
 
-    url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {AIPROXY_TOKEN}"
-    }
-    data = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {
-                "role": "system",
-                "content": """
-                   Your task is to answer the question based on the context provided.
-                   """
-            },
-            {
-                "role": "user",
-                "content": task
-            }
-        ],
-        "tools": tools,
-        "tool_choice": "auto"
-    }
-    response = requests.post(url=url, headers=headers, json=data)
-    arguments = response.json(
-    )['choices'][0]['message']['tool_calls'][0]['function']['arguments']
-    return arguments
+        if "B12"== task_code:
+            B12(**json.loads(arguments)) 
+        if "B3" == task_code:
+            B3(**json.loads(arguments))
+        if "B5" == task_code:
+            B5(**json.loads(arguments))  
+        if "B6" == task_code:
+            B6(**json.loads(arguments)) 
+        if "B7" == task_code:
+            B7(**json.loads(arguments))
+        if "B9" == task_code:
+            B9(**json.loads(arguments))               
+        return {"message": f"{task_code} Task '{task}' executed successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
+# Placeholder for file reading
+@app.get("/read", response_class=PlainTextResponse)
+async def read_file(path: str = Query(..., description="File path to read")):
+    try:
+        with open(path, "r") as file:
+            return file.read()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

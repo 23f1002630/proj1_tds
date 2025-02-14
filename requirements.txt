@@ -4,3 +4,6 @@ requests
 faker
 uvicorn
 python-dotenv
+python-dateutil
+scipy
+httpx
