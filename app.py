@@ -95,34 +95,26 @@ def install_and_run_script(script_url: str, user_email: str):
         raise HTTPException(
             status_code=500, detail=f"Failed to run script: {str(e)}")
 
+import subprocess
 
-def task_a2():
-    # Check if 'prettier' is installed
+def a2(file: str = "/data/format.md"):
+    with open(file, "r") as f:
+        original = f.read()
     try:
-        subprocess.run(['prettier', '--version'], check=True)
-    except FileNotFoundError:
-        # Install 'prettier@3.4.2' if not installed
-        try:
-            subprocess.run(
-                ['npm', 'install', '-g', 'prettier@3.4.2'], check=True)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to install prettier: {str(e)}"
-            )
-
-    # Format the file using prettier
-    file_path = '/data/format.md'
-    try:
-        subprocess.run(['prettier', '--write', file_path], check=True)
-        return {"status": "File formatted successfully"}
+        expected = subprocess.run(
+            ["npx", "prettier@3.4.2", "--stdin-filepath", file],
+            input=original,
+            capture_output=True,
+            text=True,
+            check=True
+            # Ensure npx is picked up from the PATH on Windows
+        )
+        expected = expected.stdout
+        with open(file, "w") as f:
+            f.write(expected)    
     except subprocess.CalledProcessError as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to format file: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {str(e)}"
-        )
+        print(f"Error formatting file: {e.stderr}")
+        return False
 
 
 @app.post("/run")
@@ -136,10 +128,10 @@ def task_runner(task: str):
         except Exception as e:
             raise HTTPException(
                 status_code=400, detail=f"Invalid task format: {str(e)}")
-    elif task == "Format ":
+    elif "Format" in task:
         # Call task_a2 to format the file
         try:
-            return task_a2()
+            return a2(file="/data/format.md")
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to format file: {str(e)}"
