@@ -15,6 +15,7 @@ import json
 from fastapi.exceptions import HTTPException
 import subprocess
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
@@ -116,6 +117,59 @@ def a2(file: str = "/data/format.md"):
         print(f"Error formatting file: {e.stderr}")
         return False
 
+def count_weekdays(input_file: str, output_file: str, weekday: str):
+    """
+    Count occurrences of a specific weekday in a file and write the count to an output file.
+    """
+    # Corrected weekday names
+    weekdays = ["Monday", "Tuesday", "Wednesdays", "Thursday", "Friday", "Saturday", "Sunday"]
+    weekday_index = weekdays.index(weekday)  # Get the index of the specified weekday
+
+    # List of all possible date formats in the dataset
+    date_formats = [
+        "%Y-%m-%d",          # e.g., 2023-02-14
+        "%b %d, %Y",         # e.g., Mar 21, 2009
+        "%d-%b-%Y",          # e.g., 26-Jan-2020
+        "%d/%m/%Y",          # e.g., 14/02/2025
+        "%m/%d/%Y",          # e.g., 02/14/2025
+        "%d %B %Y",          # e.g., 14 February 2025
+        "%B %d, %Y",         # e.g., February 14, 2025
+        "%Y/%m/%d %H:%M:%S", # e.g., 2023/06/20 15:18:46
+        "%Y/%m/%d",          # e.g., 2023/06/20
+        "%d-%m-%Y",          # e.g., 14-02-2025
+        "%d/%b/%Y",          # e.g., 14/Feb/2025
+        "%d-%B-%Y",          # e.g., 14-February-2025
+        "%d-%m-%y",          # e.g., 14-02-25
+        "%d/%m/%y",          # e.g., 14/02/25
+    ]
+
+    def parse_date(date_str):
+        """Try parsing a date string with multiple formats."""
+        for fmt in date_formats:
+            try:
+                return datetime.strptime(date_str.strip(), fmt)
+            except ValueError:
+                continue
+        # Log unrecognized date formats for debugging
+        print(f"Unrecognized date format: {date_str.strip()}")
+        return None
+
+    with open(input_file, "r") as file:
+        dates = file.readlines()
+
+    # Count the number of dates that match the specified weekday
+    count = 0
+    for date in dates:
+        parsed_date = parse_date(date)
+        if parsed_date and parsed_date.weekday() == weekday_index:
+            count += 1
+
+    # Write the count as a string to the output file
+    with open(output_file, "w") as file:
+        file.write(str(count))
+    
+# Call the function with the specific task requirements
+# count_weekdays("/data/dates.txt", "/data/dates-wednesdays.txt", "Wednesday")
 
 @app.post("/run")
 def task_runner(task: str):
@@ -136,6 +190,19 @@ def task_runner(task: str):
             raise HTTPException(
                 status_code=500, detail=f"Failed to format file: {str(e)}"
             )
+    elif "Count" in task:
+        try:
+            # Extract the input file, output file, and weekday from the task string
+            input_file = task.split("`")[1]  # Extract the first file path
+            output_file = task.split("`")[3]  # Extract the second file path
+            weekday = task.split("number of ")[1].split(" ")[0]  # Extract the weekday
+
+            # Call the function with the extracted parameters
+            count_weekdays(input_file, output_file, weekday)
+            return {"status": "Count executed successfully"}
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid task format: {str(e)}")
 
     url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
     headers = {
