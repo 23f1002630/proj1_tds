@@ -7,9 +7,7 @@ Report maybe subject own available child. Also left factor anything lose.
 Approach gun mind sort. Itself dark ball eat. Enough position could well produce.
 Station become fall send book owner fine. Ever less fish investment wall finally. Threat push three step that democratic beat.
 Area third five.
-
 # Discover consider rock again.
-
 Man project detail gun meet. Beat fact myself parent. When personal available call interesting material friend.
 Course write prepare nature add leg. Site any kind lay black explain.
 Already such social cause well property. Man always century author lawyer accept crime.

@@ -12,9 +12,7 @@ Middle area here others. Hot provide building.
 Available over talk sense write floor. Care collection maintain miss woman. Let should note know painting.
 Choice interest foreign difference section yes. Why agreement challenge throw art expect.
 Believe support cut section not child wind. State those president cell agency on.
-
 # Seem open daughter reason sound Democrat rich.
-
 Meeting least level produce table reason second. Move environment positive full knowledge.
 Public shake support each treatment. Candidate here election player science.
 Poor sell father. Foot drive much specific understand recognize. Guy seek perhaps issue pretty us customer.

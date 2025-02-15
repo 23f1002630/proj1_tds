@@ -29,12 +29,24 @@ def A1(email="23f1002630@ds.study.iitm.ac.in"):
         raise HTTPException(status_code=500, detail=f"Error: {e.stderr}")
 # A1()
 def A2(prettier_version="prettier@3.4.2", filename="/data/format.md"):
-    command = [r"C:\Program Files\nodejs\npx.cmd", prettier_version, "--write", filename]
+    command = ["npx", prettier_version, "--write", filename]
     try:
-        subprocess.run(command, check=True)
+        # Run the command and capture output
+        result = subprocess.run(command, check=True, text=True, capture_output=True)
         print("Prettier executed successfully.")
+        print("Output:", result.stdout)
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred: {e}")
+        # Print detailed error information
+        print(f"An error occurred while running Prettier: {e}")
+        print("Command:", " ".join(command))
+        print("Return Code:", e.returncode)
+        print("Error Output:", e.stderr)
+    except FileNotFoundError:
+        # Handle case where npx is not installed
+        print("Error: 'npx' is not installed or not found in PATH.")
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"An unexpected error occurred: {e}")
 
 def A3(filename='/data/dates.txt', targetfile='/data/dates-wednesdays.txt', weekday=2):
     input_file = filename

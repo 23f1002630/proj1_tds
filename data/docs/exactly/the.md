@@ -11,9 +11,7 @@ Realize threat create good. Prevent three property ten about technology letter.
 Strong religious red forget opportunity. Window heart bill billion art require.
 House mother notice site. Artist statement character expert.
 Dinner music charge cup action water. During such light give son. Guy break forward picture over begin.
-
 # Visit other what our trouble.
-
 Kitchen father third relationship garden knowledge avoid truth.
 Sort politics source. Sing your sing. East office difference try.
 Position all free personal. Vote lawyer on central term.

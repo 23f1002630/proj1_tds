@@ -51,7 +51,7 @@ load_dotenv()
 #     # Read the contents of tasks.py
 #     with open('tasks.py', 'r') as file:
 #         tasks_content = file.read()
-    
+
 #     # Prepare the request data
 #     data = {
 #         "contents": [{
@@ -60,12 +60,12 @@ load_dotenv()
 #             ]
 #         }]
 #     }
-    
+
 #     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
 #     headers = {
 #         "Content-Type": "application/json"
 #     }
-    
+
 #     response = requests.post(url, json=data, headers=headers)
 
 #     if response.status_code == 200:
@@ -77,12 +77,14 @@ load_dotenv()
 #     else:
 #         return JSONResponse(content={"error": "Failed to get response", "details": response.text}, status_code=response.status_code)
 
+
 @app.get("/ask")
 def ask(prompt: str):
     result = get_completions(prompt)
     return result
 
-openai_api_chat  = "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions" # for testing
+
+openai_api_chat = "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions"  # for testing
 openai_api_key = os.getenv("AIPROXY_TOKEN")
 
 headers = {
@@ -404,33 +406,101 @@ function_definitions_llm = [
             },
             "required": ["md_path", "output_path"]
         }
+    },
+    {
+        "name": "B4",
+        "description": "Clone a Git repository to the /data directory and make a commit with a specified message.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "pattern": r"https?://.*",
+                    "description": "URL of the Git repository to clone."
+                },
+                "commit_message": {
+                    "type": "string",
+                    "description": "Commit message to use for the commit."
+                }
+            },
+            "required": ["repo_url", "commit_message"]
+        }
+    },
+    {
+        "name": "B8",
+        "description": "Transcribe audio from an MP3 file and save the transcription to a text file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "audio_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.mp3)",
+                    "description": "Path to the MP3 audio file."
+                },
+                "output_path": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.txt)",
+                    "description": "Path to save the transcription text file."
+                }
+            },
+            "required": ["audio_path", "output_path"]
+        }
+    },
+    {
+        "name": "B10",
+        "description": "Filter a CSV file based on a column and value, and save the filtered data as JSON.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "input_file": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.csv)",
+                    "description": "Path to the input CSV file."
+                },
+                "column": {
+                    "type": "string",
+                    "description": "Column name to filter by."
+                },
+                "value": {
+                    "type": "string",
+                    "description": "Value to filter the column by."
+                },
+                "output_file": {
+                    "type": "string",
+                    "pattern": r".*/(.*\.json)",
+                    "description": "Path to save the filtered JSON data."
+                }
+            },
+            "required": ["input_file", "column", "value", "output_file"]
+        }
     }
 
 ]
+
 
 def get_completions(prompt: str):
     with httpx.Client(timeout=20) as client:
         response = client.post(
             f"{openai_api_chat}",
             headers=headers,
-            json=
-                {
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                                    {"role": "system", "content": "You are a function classifier that extracts structured parameters from queries."},
-                                    {"role": "user", "content": prompt}
-                                ],
-                    "tools": [
-                                {
-                                    "type": "function",
-                                    "function": function
-                                } for function in function_definitions_llm
-                            ],
-                    "tool_choice": "auto"
-                },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "You are a function classifier that extracts structured parameters from queries."},
+                    {"role": "user", "content": prompt}
+                ],
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": function
+                    } for function in function_definitions_llm
+                ],
+                "tool_choice": "auto"
+            },
         )
     # return response.json()
-    print(response.json()["choices"][0]["message"]["tool_calls"][0]["function"])
+    print(response.json()["choices"][0]["message"]
+          ["tool_calls"][0]["function"])
     return response.json()["choices"][0]["message"]["tool_calls"][0]["function"]
 
 
@@ -447,45 +517,52 @@ async def run_task(task: str):
         task_code = response['name']
         arguments = response['arguments']
 
-        if "A1"== task_code:
+        if "A1" == task_code:
             A1(**json.loads(arguments))
-        if "A2"== task_code:
-            A2(**json.loads(arguments))  
-        if "A3"== task_code:
-            A3(**json.loads(arguments))  
-        if "A4"== task_code:
+        if "A2" == task_code:
+            A2(**json.loads(arguments))
+        if "A3" == task_code:
+            A3(**json.loads(arguments))
+        if "A4" == task_code:
             A4(**json.loads(arguments))
-        if "A5"== task_code:
-            A5(**json.loads(arguments))  
-        if "A6"== task_code:
-            A6(**json.loads(arguments))   
-        if "A7"== task_code:
-            A7(**json.loads(arguments)) 
-        if "A8"== task_code:
-            A8(**json.loads(arguments)) 
-        if "A9"== task_code:
-            A9(**json.loads(arguments)) 
-        if "A10"== task_code:
-            A10(**json.loads(arguments)) 
-            
+        if "A5" == task_code:
+            A5(**json.loads(arguments))
+        if "A6" == task_code:
+            A6(**json.loads(arguments))
+        if "A7" == task_code:
+            A7(**json.loads(arguments))
+        if "A8" == task_code:
+            A8(**json.loads(arguments))
+        if "A9" == task_code:
+            A9(**json.loads(arguments))
+        if "A10" == task_code:
+            A10(**json.loads(arguments))
 
-        if "B12"== task_code:
-            B12(**json.loads(arguments)) 
+        if "B12" == task_code:
+            B12(**json.loads(arguments))
         if "B3" == task_code:
             B3(**json.loads(arguments))
+        if "B4" == task_code:
+            B4(**json.loads(arguments))
         if "B5" == task_code:
-            B5(**json.loads(arguments))  
+            B5(**json.loads(arguments))
         if "B6" == task_code:
-            B6(**json.loads(arguments)) 
+            B6(**json.loads(arguments))
         if "B7" == task_code:
             B7(**json.loads(arguments))
+        if "B8" == task_code:
+            B8(**json.loads(arguments))
         if "B9" == task_code:
-            B9(**json.loads(arguments))               
+            B9(**json.loads(arguments))
+        if "B10" == task_code:
+            B10(**json.loads(arguments))
         return {"message": f"{task_code} Task '{task}' executed successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 # Placeholder for file reading
+
+
 @app.get("/read", response_class=PlainTextResponse)
 async def read_file(path: str = Query(..., description="File path to read")):
     try:

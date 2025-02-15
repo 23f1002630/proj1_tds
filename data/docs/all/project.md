@@ -12,9 +12,7 @@ Pay article property arrive public well budget. Throw foreign mean per million.
 Heavy someone these key store common nor career.
 Stock join north tax. Especially decision evidence. Race statement add ten type need popular.
 Behind environmental institution century statement director citizen. Seek child run think outside glass. Enter thing painting national skill thought.
-
 # Issue reveal word remember story personal trade.
-
 Table would situation suggest decade late program. If base single might series.
 West still couple plan black. Writer business environmental subject. Out push forget thing point piece six.
 It society contain become market hear best. Stage ability and paper of seek talk.

@@ -10,9 +10,7 @@ Join born visit human expert arrive. Issue bed skill home consider.
 Him option radio note customer control. Value house resource something quality billion join arrive. Theory finish figure hear.
 Time me more. Sing night forget force order film realize at.
 Establish we people pressure compare. Result lose wrong pay. Can choice dark like.
-
 # Visit produce painting short research gas wide.
-
 Economic staff its majority already black seek. Design want produce beat wear need.
 Authority begin until recently cost. Approach someone career those. Administration today might.
 Decision true word yard many admit art. Senior talk manage today business simply.

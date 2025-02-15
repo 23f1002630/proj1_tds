@@ -7,3 +7,4 @@ python-dotenv
 python-dateutil
 scipy
 httpx
+openai
